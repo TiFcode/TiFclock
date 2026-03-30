@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>TiFclock - Învață Ceasul! ⏰</title>
+<meta name="description" content="Învață să citești ceasul analogic - Learn to read analog clocks!">
+<meta property="og:title" content="TiFclock - Învață Ceasul! ⏰">
+<meta property="og:description" content="Joc educativ pentru copii - învață orele pe ceas!">
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg: #e8f4fd;
+  --card: #ffffff;
+  --primary: #3b82f6;
+  --primary-dark: #2563eb;
+  --success: #22c55e;
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --text: #1e293b;
+  --text-light: #64748b;
+  --clock-bg: #f0f7ff;
+  --clock-rim: #3b82f6;
+  --hour-hand: #1e293b;
+  --minute-hand: #3b82f6;
+  --shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-x: hidden;
+  user-select: none;
+}
+
+/* HEADER */
+.header {
+  width: 100%;
+  text-align: center;
+  padding: 12px 16px 8px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: white;
+  position: relative;
+}
+.header h1 { font-size: 1.5rem; margin-bottom: 2px; }
+.header .subtitle { font-size: 0.85rem; opacity: 0.9; }
+
+/* STATS BAR */
+.stats {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 8px 16px;
+  background: white;
+  width: 100%;
+  box-shadow: var(--shadow);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.stats .stat { display: flex; align-items: center; gap: 4px; }
+.stats .level-badge {
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  color: white;
+  padding: 2px 10px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+}
+
+/* MAIN */
+.game-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  width: 100%;
+  max-width: 500px;
+  gap: 16px;
+}
+
+/* PROMPT */
+.prompt-card {
+  background: white;
+  border-radius: 16px;
+  padding: 16px 24px;
+  text-align: center;
+  box-shadow: var(--shadow);
+  width: 100%;
+}
+.prompt-card .task-label {
+  font-size: 0.8rem;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+.prompt-card .task-text {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--primary-dark);
+}
+.prompt-card .task-sub {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  margin-top: 2px;
+}
+
+/* CLOCK */
+.clock-container {
+  position: relative;
+  width: min(280px, 70vw);
+  height: min(280px, 70vw);
+}
+.clock-svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 12px rgba(59,130,246,0.2));
+}
+.clock-face { fill: var(--clock-bg); stroke: var(--clock-rim); stroke-width: 4; }
+.clock-center { fill: var(--hour-hand); }
+.tick-major { stroke: var(--text); stroke-width: 2.5; stroke-linecap: round; }
+.tick-minor { stroke: #cbd5e1; stroke-width: 1; stroke-linecap: round; }
+.clock-number { fill: var(--text); font-size: 16px; font-weight: 700; font-family: 'Segoe UI', system-ui, sans-serif; text-anchor: middle; dominant-baseline: central; }
+.hand-hour { stroke: var(--hour-hand); stroke-width: 5; stroke-linecap: round; }
+.hand-minute { stroke: var(--minute-hand); stroke-width: 3.5; stroke-linecap: round; }
+
+/* Drag mode: interactive hands */
+.clock-container.interactive .hand-hour,
+.clock-container.interactive .hand-minute {
+  cursor: grab;
+}
+.clock-container.interactive .hand-hour:hover,
+.clock-container.interactive .hand-minute:hover {
+  filter: drop-shadow(0 0 6px rgba(59,130,246,0.5));
+}
+.drag-hint {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  color: var(--text-light);
+  background: white;
+  padding: 2px 10px;
+  border-radius: 8px;
+  white-space: nowrap;
+}
+
+/* ANSWER BUTTONS */
+.answers {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  width: 100%;
+}
+.answer-btn {
+  padding: 14px 8px;
+  border: 3px solid #e2e8f0;
+  border-radius: 14px;
+  background: white;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.answer-btn:active { transform: scale(0.96); }
+.answer-btn.correct {
+  border-color: var(--success);
+  background: #f0fdf4;
+  color: var(--success);
+  animation: popCorrect 0.4s ease;
+}
+.answer-btn.wrong {
+  border-color: var(--danger);
+  background: #fef2f2;
+  color: var(--danger);
+  animation: shake 0.4s ease;
+}
+
+/* SET-TIME CONFIRM */
+.confirm-btn {
+  padding: 14px 32px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(59,130,246,0.3);
+  transition: all 0.15s;
+}
+.confirm-btn:active { transform: scale(0.96); }
+
+/* FEEDBACK */
+.feedback {
+  font-size: 1.8rem;
+  min-height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+}
+
+/* LEVEL COMPLETE OVERLAY */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.overlay.show { opacity: 1; pointer-events: auto; }
+.overlay-card {
+  background: white;
+  border-radius: 24px;
+  padding: 32px;
+  text-align: center;
+  max-width: 340px;
+  width: 90%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  transform: scale(0.8);
+  transition: transform 0.3s;
+}
+.overlay.show .overlay-card { transform: scale(1); }
+.overlay-card .big-emoji { font-size: 3.5rem; margin-bottom: 8px; }
+.overlay-card h2 { font-size: 1.4rem; margin-bottom: 4px; }
+.overlay-card p { color: var(--text-light); margin-bottom: 16px; }
+.overlay-card .stars { font-size: 2rem; margin-bottom: 12px; }
+.overlay-card button {
+  padding: 12px 32px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--primary), #8b5cf6);
+  color: white;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* MENU SCREEN */
+.menu-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  gap: 12px;
+  width: 100%;
+  max-width: 400px;
+}
+.menu-screen .big-clock { font-size: 5rem; animation: float 3s ease-in-out infinite; }
+.menu-screen h2 { font-size: 1.6rem; text-align: center; }
+.menu-screen p { color: var(--text-light); text-align: center; font-size: 0.9rem; }
+
+.level-list {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.level-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: white;
+  padding: 14px 16px;
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.level-item:active { transform: scale(0.98); }
+.level-item.locked { opacity: 0.5; pointer-events: none; }
+.level-item .lvl-icon { font-size: 1.8rem; }
+.level-item .lvl-info { flex: 1; }
+.level-item .lvl-name { font-weight: 700; font-size: 1rem; }
+.level-item .lvl-desc { font-size: 0.78rem; color: var(--text-light); }
+.level-item .lvl-stars { font-size: 1.1rem; }
+
+/* ANIMATIONS */
+@keyframes popCorrect {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+@keyframes shake {
+  0%,100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+@keyframes float {
+  0%,100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes confettiDrop {
+  0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(60px) rotate(360deg); opacity: 0; }
+}
+
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header" id="header">
+  <h1>⏰ TiFclock</h1>
+  <div class="subtitle">Învață Ceasul! / Learn the Clock!</div>
+</div>
+
+<!-- STATS -->
+<div class="stats" id="statsBar">
+  <div class="stat" id="levelBadge"><span class="level-badge">Nivel 1</span></div>
+  <div class="stat">⭐ <span id="scoreDisplay">0</span></div>
+  <div class="stat">❤️ <span id="livesDisplay">3</span></div>
+  <div class="stat">🔥 <span id="streakDisplay">0</span></div>
+</div>
+
+<!-- MENU -->
+<div class="menu-screen" id="menuScreen">
+  <div class="big-clock">🕐</div>
+  <h2>Învață să citești ceasul!</h2>
+  <p>Learn to read the clock! 🎓</p>
+  <div class="level-list" id="levelList"></div>
+</div>
+
+<!-- GAME -->
+<div class="game-area hidden" id="gameArea">
+  <div class="prompt-card" id="promptCard">
+    <div class="task-label" id="taskLabel">Ce oră arată ceasul?</div>
+    <div class="task-text" id="taskText">What time is it?</div>
+    <div class="task-sub" id="taskSub"></div>
+  </div>
+
+  <div class="clock-container" id="clockContainer">
+    <svg class="clock-svg" viewBox="0 0 200 200" id="clockSvg">
+      <!-- Face -->
+      <circle class="clock-face" cx="100" cy="100" r="94"/>
+      <!-- Ticks & numbers generated by JS -->
+      <g id="ticksGroup"></g>
+      <g id="numbersGroup"></g>
+      <!-- Hands -->
+      <line class="hand-hour" id="handHour" x1="100" y1="100" x2="100" y2="52"/>
+      <line class="hand-minute" id="handMinute" x1="100" y1="100" x2="100" y2="32"/>
+      <!-- Center -->
+      <circle class="clock-center" cx="100" cy="100" r="5"/>
+    </svg>
+    <div class="drag-hint hidden" id="dragHint">↻ Trage acele / Drag the hands</div>
+  </div>
+
+  <div class="feedback" id="feedback"></div>
+
+  <!-- Multiple choice answers -->
+  <div class="answers" id="answersGrid"></div>
+  <!-- Set-time confirm button -->
+  <button class="confirm-btn hidden" id="confirmBtn">✓ Gata! / Done!</button>
+</div>
+
+<!-- LEVEL COMPLETE OVERLAY -->
+<div class="overlay" id="overlay">
+  <div class="overlay-card">
+    <div class="big-emoji" id="overlayEmoji">🎉</div>
+    <h2 id="overlayTitle">Nivel completat!</h2>
+    <div class="stars" id="overlayStars">⭐⭐⭐</div>
+    <p id="overlayText">Excelent! / Excellent!</p>
+    <button onclick="game.nextLevel()">Continuă ➜</button>
+  </div>
+</div>
+
+<script>
+const LEVELS = [
+  {
+    id: 1,
+    icon: '🕐',
+    name: 'Ore Fixe / Full Hours',
+    desc: 'Învață orele exacte (1:00, 2:00...)',
+    mode: 'pick',
+    genTime: () => [randInt(1,12), 0],
+    choices: 4,
+    rounds: 8,
+  },
+  {
+    id: 2,
+    icon: '🕐',
+    name: 'Ore Fixe Greu / Full Hours Hard',
+    desc: 'Alege ora corectă din 6 variante',
+    mode: 'pick',
+    genTime: () => [randInt(1,12), 0],
+    choices: 6,
+    rounds: 10,
+  },
+  {
+    id: 3,
+    icon: '🕧',
+    name: 'Și Jumătate / Half Past',
+    desc: 'Ore fixe și jumătăți (3:00, 3:30...)',
+    mode: 'pick',
+    genTime: () => [randInt(1,12), randChoice([0, 30])],
+    choices: 4,
+    rounds: 10,
+  },
+  {
+    id: 4,
+    icon: '🕒',
+    name: 'Sferturi / Quarters',
+    desc: 'Fix, jumătate, sfert (15, 30, 45)',
+    mode: 'pick',
+    genTime: () => [randInt(1,12), randChoice([0, 15, 30, 45])],
+    choices: 4,
+    rounds: 10,
+  },
+  {
+    id: 5,
+    icon: '🕕',
+    name: '5 în 5 / By Fives',
+    desc: 'Minute din 5 în 5 (5, 10, 15...)',
+    mode: 'pick',
+    genTime: () => [randInt(1,12), randInt(0,11)*5],
+    choices: 4,
+    rounds: 12,
+  },
+  {
+    id: 6,
+    icon: '🕘',
+    name: 'Setează Ceasul / Set the Clock',
+    desc: 'Mută acele la ora cerută!',
+    mode: 'set',
+    genTime: () => [randInt(1,12), randChoice([0, 15, 30, 45])],
+    rounds: 8,
+  },
+  {
+    id: 7,
+    icon: '🕛',
+    name: 'Orice Minut / Any Minute',
+    desc: 'Citește orice oră exactă!',
+    mode: 'pick',
+    genTime: () => [randInt(1,12), randInt(0,59)],
+    choices: 4,
+    rounds: 12,
+  },
+  {
+    id: 8,
+    icon: '⏰',
+    name: 'Expert Ceasornicar / Clock Master',
+    desc: 'Setează ceasul la orice oră!',
+    mode: 'set',
+    genTime: () => [randInt(1,12), randInt(0,11)*5],
+    rounds: 10,
+  },
+];
+
+function randInt(a, b) { return a + Math.floor(Math.random() * (b - a + 1)); }
+function randChoice(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+function fmtTime(h, m) { return `${h}:${String(m).padStart(2, '0')}`; }
+function fmtTimeRo(h, m) {
+  if (m === 0) return `${h} fix`;
+  if (m === 30) return `${h} și jumătate`;
+  if (m === 15) return `${h} și un sfert`;
+  if (m === 45) return `${h} fără un sfert`;
+  return `${h}:${String(m).padStart(2, '0')}`;
+}
+
+// Clock rendering
+const CX = 100, CY = 100, R = 94;
+
+function initClockFace() {
+  const tg = document.getElementById('ticksGroup');
+  const ng = document.getElementById('numbersGroup');
+  tg.innerHTML = '';
+  ng.innerHTML = '';
+  for (let i = 0; i < 60; i++) {
+    const ang = (i * 6 - 90) * Math.PI / 180;
+    const isMajor = i % 5 === 0;
+    const r1 = isMajor ? R - 14 : R - 8;
+    const r2 = R - 4;
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', CX + r1 * Math.cos(ang));
+    line.setAttribute('y1', CY + r1 * Math.sin(ang));
+    line.setAttribute('x2', CX + r2 * Math.cos(ang));
+    line.setAttribute('y2', CY + r2 * Math.sin(ang));
+    line.setAttribute('class', isMajor ? 'tick-major' : 'tick-minor');
+    tg.appendChild(line);
+  }
+  for (let n = 1; n <= 12; n++) {
+    const ang = (n * 30 - 90) * Math.PI / 180;
+    const nr = R - 26;
+    const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+    txt.setAttribute('x', CX + nr * Math.cos(ang));
+    txt.setAttribute('y', CY + nr * Math.sin(ang));
+    txt.setAttribute('class', 'clock-number');
+    txt.textContent = n;
+    ng.appendChild(txt);
+  }
+}
+
+function setHands(h, m, animate = true) {
+  const mAngle = (m * 6) - 90;
+  const hAngle = ((h % 12) * 30 + m * 0.5) - 90;
+  const mRad = mAngle * Math.PI / 180;
+  const hRad = hAngle * Math.PI / 180;
+  const hHand = document.getElementById('handHour');
+  const mHand = document.getElementById('handMinute');
+  const hLen = 38, mLen = 52;
+  if (animate) {
+    hHand.style.transition = 'all 0.5s ease';
+    mHand.style.transition = 'all 0.5s ease';
+  } else {
+    hHand.style.transition = 'none';
+    mHand.style.transition = 'none';
+  }
+  hHand.setAttribute('x2', CX + hLen * Math.cos(hRad));
+  hHand.setAttribute('y2', CY + hLen * Math.sin(hRad));
+  mHand.setAttribute('x2', CX + mLen * Math.cos(mRad));
+  mHand.setAttribute('y2', CY + mLen * Math.sin(mRad));
+}
+
+// GAME STATE
+const game = {
+  score: 0,
+  lives: 3,
+  streak: 0,
+  level: 1,
+  round: 0,
+  targetH: 0,
+  targetM: 0,
+  setH: 12,
+  setM: 0,
+  dragging: null,
+  levelScores: {},
+  answered: false,
+
+  init() {
+    this.loadProgress();
+    initClockFace();
+    this.renderMenu();
+    this.setupDrag();
+  },
+
+  loadProgress() {
+    try {
+      const d = JSON.parse(localStorage.getItem('tifclock_progress') || '{}');
+      this.levelScores = d.levelScores || {};
+    } catch(e) {}
+  },
+
+  saveProgress() {
+    localStorage.setItem('tifclock_progress', JSON.stringify({
+      levelScores: this.levelScores,
+    }));
+  },
+
+  renderMenu() {
+    document.getElementById('menuScreen').classList.remove('hidden');
+    document.getElementById('gameArea').classList.add('hidden');
+    document.getElementById('statsBar').classList.add('hidden');
+    const list = document.getElementById('levelList');
+    list.innerHTML = '';
+    let maxUnlocked = 1;
+    for (let i = 1; i <= LEVELS.length; i++) {
+      if (this.levelScores[i]) maxUnlocked = Math.max(maxUnlocked, i + 1);
+    }
+    LEVELS.forEach(lv => {
+      const locked = lv.id > maxUnlocked;
+      const stars = this.levelScores[lv.id] || 0;
+      const el = document.createElement('div');
+      el.className = 'level-item' + (locked ? ' locked' : '');
+      el.innerHTML = `
+        <div class="lvl-icon">${locked ? '🔒' : lv.icon}</div>
+        <div class="lvl-info">
+          <div class="lvl-name">${lv.id}. ${lv.name}</div>
+          <div class="lvl-desc">${lv.desc}</div>
+        </div>
+        <div class="lvl-stars">${stars >= 3 ? '⭐⭐⭐' : stars >= 2 ? '⭐⭐☆' : stars >= 1 ? '⭐☆☆' : '☆☆☆'}</div>
+      `;
+      if (!locked) el.onclick = () => this.startLevel(lv.id);
+      list.appendChild(el);
+    });
+  },
+
+  startLevel(id) {
+    this.level = id;
+    this.round = 0;
+    this.score = 0;
+    this.lives = 3;
+    this.streak = 0;
+    document.getElementById('menuScreen').classList.add('hidden');
+    document.getElementById('gameArea').classList.remove('hidden');
+    document.getElementById('statsBar').classList.remove('hidden');
+    this.updateStats();
+    this.nextRound();
+  },
+
+  updateStats() {
+    document.getElementById('levelBadge').innerHTML = `<span class="level-badge">Nivel ${this.level}</span>`;
+    document.getElementById('scoreDisplay').textContent = this.score;
+    document.getElementById('livesDisplay').textContent = '❤️'.repeat(Math.max(0, this.lives)) || '💔';
+    document.getElementById('streakDisplay').textContent = this.streak;
+  },
+
+  nextRound() {
+    const lv = LEVELS[this.level - 1];
+    this.round++;
+    if (this.round > lv.rounds || this.lives <= 0) {
+      this.endLevel();
+      return;
+    }
+    this.answered = false;
+    document.getElementById('feedback').textContent = '';
+    const [h, m] = lv.genTime();
+    this.targetH = h;
+    this.targetM = m;
+
+    if (lv.mode === 'pick') {
+      // Show clock, pick answer
+      document.getElementById('clockContainer').classList.remove('interactive');
+      document.getElementById('dragHint').classList.add('hidden');
+      document.getElementById('answersGrid').classList.remove('hidden');
+      document.getElementById('confirmBtn').classList.add('hidden');
+      document.getElementById('taskLabel').textContent = 'Ce oră arată ceasul?';
+      document.getElementById('taskText').textContent = 'What time does the clock show?';
+      document.getElementById('taskSub').textContent = `Runda ${this.round}/${lv.rounds}`;
+      setHands(h, m);
+      this.renderChoices(h, m, lv.choices || 4);
+    } else {
+      // Set mode: show target time, user drags hands
+      document.getElementById('clockContainer').classList.add('interactive');
+      document.getElementById('dragHint').classList.remove('hidden');
+      document.getElementById('answersGrid').classList.add('hidden');
+      document.getElementById('confirmBtn').classList.remove('hidden');
+      document.getElementById('taskLabel').textContent = 'Setează ceasul la:';
+      document.getElementById('taskText').textContent = fmtTime(h, m);
+      document.getElementById('taskSub').textContent = `${fmtTimeRo(h, m)} — Runda ${this.round}/${lv.rounds}`;
+      this.setH = 12;
+      this.setM = 0;
+      setHands(12, 0, false);
+    }
+  },
+
+  renderChoices(correctH, correctM, count) {
+    const grid = document.getElementById('answersGrid');
+    grid.innerHTML = '';
+    const correct = fmtTime(correctH, correctM);
+    const options = new Set([correct]);
+    const lv = LEVELS[this.level - 1];
+    let tries = 0;
+    while (options.size < count && tries < 100) {
+      const [dh, dm] = lv.genTime();
+      options.add(fmtTime(dh, dm));
+      tries++;
+    }
+    // Fill if needed
+    while (options.size < count) {
+      options.add(fmtTime(randInt(1,12), randInt(0,11)*5));
+    }
+    const arr = [...options].sort(() => Math.random() - 0.5);
+    arr.forEach(t => {
+      const btn = document.createElement('button');
+      btn.className = 'answer-btn';
+      btn.textContent = t;
+      btn.onclick = () => this.checkAnswer(btn, t, correct);
+      grid.appendChild(btn);
+    });
+  },
+
+  checkAnswer(btn, selected, correct) {
+    if (this.answered) return;
+    this.answered = true;
+    if (selected === correct) {
+      btn.classList.add('correct');
+      this.streak++;
+      const bonus = this.streak >= 3 ? 2 : 1;
+      this.score += bonus;
+      document.getElementById('feedback').textContent = randChoice(['🎉 Bravo!', '✨ Corect!', '👏 Super!', '🌟 Excelent!', '💪 Perfect!']);
+    } else {
+      btn.classList.add('wrong');
+      // highlight correct
+      [...document.querySelectorAll('.answer-btn')].forEach(b => {
+        if (b.textContent === correct) b.classList.add('correct');
+      });
+      this.lives--;
+      this.streak = 0;
+      document.getElementById('feedback').textContent = randChoice(['😅 Nu chiar...', '🤔 Mai încearcă!', '💭 Aproape!']);
+    }
+    this.updateStats();
+    setTimeout(() => this.nextRound(), 1200);
+  },
+
+  setupDrag() {
+    const svg = document.getElementById('clockSvg');
+    const container = document.getElementById('clockContainer');
+    const hHand = document.getElementById('handHour');
+    const mHand = document.getElementById('handMinute');
+
+    const getAngle = (e) => {
+      const rect = svg.getBoundingClientRect();
+      const cx = rect.left + rect.width / 2;
+      const cy = rect.top + rect.height / 2;
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+      return Math.atan2(clientY - cy, clientX - cx) * 180 / Math.PI + 90;
+    };
+
+    const snapAngle = (deg, isHour) => {
+      deg = ((deg % 360) + 360) % 360;
+      if (isHour) {
+        // Snap to 30° increments (hours) + half-hour offset
+        const step = 30;
+        return Math.round(deg / step) * step;
+      } else {
+        // Snap to 6° increments (minutes)
+        const step = 6;
+        return Math.round(deg / step) * step;
+      }
+    };
+
+    const startDrag = (e) => {
+      if (!container.classList.contains('interactive')) return;
+      const target = e.target;
+      if (target === mHand || target === hHand) {
+        this.dragging = target === hHand ? 'hour' : 'minute';
+        e.preventDefault();
+      }
+    };
+
+    const moveDrag = (e) => {
+      if (!this.dragging) return;
+      e.preventDefault();
+      const angle = getAngle(e);
+      if (this.dragging === 'minute') {
+        const snapped = snapAngle(angle, false);
+        this.setM = ((snapped / 6) % 60 + 60) % 60;
+      } else {
+        const snapped = snapAngle(angle, true);
+        this.setH = ((snapped / 30) % 12) || 12;
+      }
+      setHands(this.setH, this.setM, false);
+    };
+
+    const endDrag = () => { this.dragging = null; };
+
+    svg.addEventListener('mousedown', startDrag);
+    svg.addEventListener('touchstart', startDrag, { passive: false });
+    window.addEventListener('mousemove', moveDrag);
+    window.addEventListener('touchmove', moveDrag, { passive: false });
+    window.addEventListener('mouseup', endDrag);
+    window.addEventListener('touchend', endDrag);
+
+    document.getElementById('confirmBtn').addEventListener('click', () => this.checkSetTime());
+  },
+
+  checkSetTime() {
+    if (this.answered) return;
+    this.answered = true;
+    const correctH = this.targetH;
+    const correctM = this.targetM;
+    const hMatch = (this.setH % 12) === (correctH % 12);
+    const mMatch = this.setM === correctM;
+
+    if (hMatch && mMatch) {
+      this.streak++;
+      const bonus = this.streak >= 3 ? 2 : 1;
+      this.score += bonus;
+      document.getElementById('feedback').textContent = randChoice(['🎉 Bravo!', '✨ Perfect!', '👏 Minunat!', '🌟 Exact!']);
+    } else {
+      this.lives--;
+      this.streak = 0;
+      document.getElementById('feedback').textContent = `😅 Era ${fmtTime(correctH, correctM)}`;
+      // Show correct
+      setHands(correctH, correctM);
+    }
+    this.updateStats();
+    setTimeout(() => this.nextRound(), 1500);
+  },
+
+  endLevel() {
+    const lv = LEVELS[this.level - 1];
+    const pct = this.score / (lv.rounds * 1.5); // rough star calc
+    const stars = pct >= 0.9 ? 3 : pct >= 0.5 ? 2 : this.lives > 0 ? 1 : 0;
+    const prev = this.levelScores[this.level] || 0;
+    if (stars > prev) {
+      this.levelScores[this.level] = stars;
+      this.saveProgress();
+    }
+
+    const ov = document.getElementById('overlay');
+    document.getElementById('overlayEmoji').textContent = stars >= 3 ? '🏆' : stars >= 2 ? '🎉' : stars >= 1 ? '👍' : '😢';
+    document.getElementById('overlayTitle').textContent = this.lives > 0 ? 'Nivel completat!' : 'Mai încearcă!';
+    document.getElementById('overlayStars').textContent = '⭐'.repeat(stars) + '☆'.repeat(3 - stars);
+    document.getElementById('overlayText').textContent = `Scor: ${this.score} | Cel mai bun streak: ${this.streak}`;
+    ov.classList.add('show');
+  },
+
+  nextLevel() {
+    document.getElementById('overlay').classList.remove('show');
+    // If there's a next level and we passed, go to it; otherwise menu
+    if (this.lives > 0 && this.level < LEVELS.length) {
+      this.startLevel(this.level + 1);
+    } else {
+      this.renderMenu();
+    }
+  }
+};
+
+game.init();
+</script>
+</body>
+</html>
