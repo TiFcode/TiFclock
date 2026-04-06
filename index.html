@@ -160,14 +160,27 @@ body {
   text-anchor: middle;
   dominant-baseline: central;
 }
-.hand-hour { stroke: var(--hour-hand); stroke-width: 10; stroke-linecap: round; }
-.hand-minute { stroke: var(--minute-hand); stroke-width: 8; stroke-linecap: round; }
+.hand-hour {
+  stroke: url(#hourHandGradient);
+  stroke-width: 13;
+  stroke-linecap: round;
+  filter: drop-shadow(0 2px 4px rgba(124,45,18,0.25));
+}
+.hand-minute {
+  stroke: url(#minuteHandGradient);
+  stroke-width: 11;
+  stroke-linecap: round;
+  filter: drop-shadow(0 2px 4px rgba(37,99,235,0.22));
+}
+.hand-deco {
+  pointer-events: none;
+}
 .hand-hit {
   stroke: rgba(0,0,0,0.001);
   stroke-linecap: round;
 }
-.hand-hour-hit { stroke-width: 28; }
-.hand-minute-hit { stroke-width: 24; }
+.hand-hour-hit { stroke-width: 40; }
+.hand-minute-hit { stroke-width: 36; }
 
 /* Drag mode: interactive hands */
 .clock-container.interactive .hand-hour,
@@ -403,6 +416,14 @@ body {
           <stop offset="0%" stop-color="#f59e0b" />
           <stop offset="100%" stop-color="#fb7185" />
         </linearGradient>
+        <linearGradient id="hourHandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#92400e" />
+          <stop offset="100%" stop-color="#7c2d12" />
+        </linearGradient>
+        <linearGradient id="minuteHandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#60a5fa" />
+          <stop offset="100%" stop-color="#1d4ed8" />
+        </linearGradient>
       </defs>
       <!-- Face -->
       <circle class="clock-face" cx="100" cy="100" r="94"/>
@@ -416,6 +437,10 @@ body {
       <!-- Hands -->
       <line class="hand-hour" id="handHour" x1="100" y1="100" x2="100" y2="52"/>
       <line class="hand-minute" id="handMinute" x1="100" y1="100" x2="100" y2="32"/>
+      <circle class="hand-deco" id="handHourTip" cx="100" cy="52" r="5.5" fill="#7c2d12"/>
+      <circle class="hand-deco" id="handMinuteTip" cx="100" cy="32" r="4.8" fill="#1d4ed8"/>
+      <circle class="hand-deco" id="handHourBase" cx="100" cy="100" r="7" fill="#fef3c7" stroke="#7c2d12" stroke-width="3"/>
+      <circle class="hand-deco" id="handMinuteBase" cx="100" cy="100" r="4.5" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2.5"/>
       <!-- Center -->
       <circle class="clock-center" cx="100" cy="100" r="8"/>
     </svg>
@@ -576,6 +601,8 @@ function setHands(h, m, animate = true) {
   const mHand = document.getElementById('handMinute');
   const hHandHit = document.getElementById('handHourHit');
   const mHandHit = document.getElementById('handMinuteHit');
+  const hHandTip = document.getElementById('handHourTip');
+  const mHandTip = document.getElementById('handMinuteTip');
   const hLen = 38, mLen = 52;
   if (animate) {
     hHand.style.transition = 'all 0.5s ease';
@@ -600,6 +627,10 @@ function setHands(h, m, animate = true) {
   hHandHit.setAttribute('y2', hourY);
   mHandHit.setAttribute('x2', minuteX);
   mHandHit.setAttribute('y2', minuteY);
+  hHandTip.setAttribute('cx', hourX);
+  hHandTip.setAttribute('cy', hourY);
+  mHandTip.setAttribute('cx', minuteX);
+  mHandTip.setAttribute('cy', minuteY);
 }
 
 // GAME STATE
@@ -613,6 +644,8 @@ const game = {
   targetM: 0,
   setH: 12,
   setM: 0,
+  setTotalMinutes: 12 * 60,
+  dragLastMinuteRaw: null,
   dragging: null,
   levelScores: {},
   answered: false,
@@ -681,7 +714,18 @@ const game = {
     this.renderMenu();
   },
 
+  syncSetTimeFromTotal() {
+    let total = this.setTotalMinutes;
+    while (total <= 0) total += 12 * 60;
+    const wrapped = ((total % (12 * 60)) + (12 * 60)) % (12 * 60);
+    const hour = Math.floor(wrapped / 60) || 12;
+    const minute = wrapped % 60;
+    this.setH = hour;
+    this.setM = minute;
+  },
+
   updateLiveDigitalTime() {
+    this.syncSetTimeFromTotal();
     const el = document.getElementById('liveDigitalTime');
     el.textContent = `Ora setată: ${fmtTime(this.setH, this.setM)}`;
   },
@@ -728,9 +772,10 @@ const game = {
       document.getElementById('taskLabel').textContent = 'Setează ceasul la:';
       document.getElementById('taskText').textContent = fmtTime(h, m);
       document.getElementById('taskSub').textContent = `${fmtTimeRo(h, m)} — Runda ${this.round}/${lv.rounds}`;
-      this.setH = 12;
-      this.setM = 0;
-      setHands(12, 0, false);
+      this.setTotalMinutes = 12 * 60;
+      this.dragLastMinuteRaw = null;
+      this.syncSetTimeFromTotal();
+      setHands(this.setH, this.setM, false);
       this.updateLiveDigitalTime();
     }
   },
@@ -819,6 +864,7 @@ const game = {
       const target = e.target;
       if (target === mHand || target === hHand || target === mHandHit || target === hHandHit) {
         this.dragging = (target === hHand || target === hHandHit) ? 'hour' : 'minute';
+        this.dragLastMinuteRaw = this.setM;
         e.preventDefault();
       }
     };
@@ -829,16 +875,33 @@ const game = {
       const angle = getAngle(e);
       if (this.dragging === 'minute') {
         const snapped = snapAngle(angle, false);
-        this.setM = ((snapped / 6) % 60 + 60) % 60;
+        const rawMinute = ((snapped / 6) % 60 + 60) % 60;
+        let delta = rawMinute - this.dragLastMinuteRaw;
+        if (delta > 30) delta -= 60;
+        if (delta < -30) delta += 60;
+        this.setTotalMinutes += delta;
+        this.dragLastMinuteRaw = rawMinute;
       } else {
         const snapped = snapAngle(angle, true);
-        this.setH = ((snapped / 30) % 12) || 12;
+        const rawHour = ((snapped / 30) % 12) || 12;
+        const currentCycleHour = Math.floor(this.setTotalMinutes / 60);
+        const minutePart = ((this.setTotalMinutes % 60) + 60) % 60;
+        const candidates = [rawHour, rawHour + 12, rawHour - 12];
+        let chosen = candidates[0];
+        for (const candidate of candidates) {
+          if (Math.abs(candidate - currentCycleHour) < Math.abs(chosen - currentCycleHour)) chosen = candidate;
+        }
+        this.setTotalMinutes = chosen * 60 + minutePart;
       }
+      this.syncSetTimeFromTotal();
       setHands(this.setH, this.setM, false);
       this.updateLiveDigitalTime();
     };
 
-    const endDrag = () => { this.dragging = null; };
+    const endDrag = () => {
+      this.dragging = null;
+      this.dragLastMinuteRaw = this.setM;
+    };
 
     svg.addEventListener('mousedown', startDrag);
     svg.addEventListener('touchstart', startDrag, { passive: false });
@@ -856,6 +919,7 @@ const game = {
     this.answered = true;
     const correctH = this.targetH;
     const correctM = this.targetM;
+    this.syncSetTimeFromTotal();
     const hMatch = (this.setH % 12) === (correctH % 12);
     const mMatch = this.setM === correctM;
 
