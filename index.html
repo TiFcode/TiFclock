@@ -160,16 +160,21 @@ body {
   text-anchor: middle;
   dominant-baseline: central;
 }
-.hand-hour {
-  stroke: url(#hourHandGradient);
-  stroke-width: 13;
-  stroke-linecap: round;
+.hand-hour,
+.hand-minute {
+  stroke: none;
+  pointer-events: none;
+}
+.hand-hour-shape {
+  fill: url(#hourHandGradient);
+  stroke: #5b210f;
+  stroke-width: 1.8;
   filter: drop-shadow(0 2px 4px rgba(124,45,18,0.25));
 }
-.hand-minute {
-  stroke: url(#minuteHandGradient);
-  stroke-width: 11;
-  stroke-linecap: round;
+.hand-minute-shape {
+  fill: url(#minuteHandGradient);
+  stroke: #1e3a8a;
+  stroke-width: 1.6;
   filter: drop-shadow(0 2px 4px rgba(37,99,235,0.22));
 }
 .hand-deco {
@@ -179,8 +184,8 @@ body {
   stroke: rgba(0,0,0,0.001);
   stroke-linecap: round;
 }
-.hand-hour-hit { stroke-width: 40; }
-.hand-minute-hit { stroke-width: 36; }
+.hand-hour-hit { stroke-width: 44; }
+.hand-minute-hit { stroke-width: 40; }
 
 /* Drag mode: interactive hands */
 .clock-container.interactive .hand-hour,
@@ -437,6 +442,8 @@ body {
       <!-- Hands -->
       <line class="hand-hour" id="handHour" x1="100" y1="100" x2="100" y2="52"/>
       <line class="hand-minute" id="handMinute" x1="100" y1="100" x2="100" y2="32"/>
+      <path class="hand-hour-shape" id="handHourShape" d=""/>
+      <path class="hand-minute-shape" id="handMinuteShape" d=""/>
       <circle class="hand-deco" id="handHourTip" cx="100" cy="52" r="5.5" fill="#7c2d12"/>
       <circle class="hand-deco" id="handMinuteTip" cx="100" cy="32" r="4.8" fill="#1d4ed8"/>
       <circle class="hand-deco" id="handHourBase" cx="100" cy="100" r="7" fill="#fef3c7" stroke="#7c2d12" stroke-width="3"/>
@@ -592,6 +599,22 @@ function initClockFace() {
   }
 }
 
+function handShapePath(length, baseWidth, midWidth, tipWidth, tailLength = 10) {
+  return [
+    `M ${-baseWidth/2} 0`,
+    `L ${-midWidth/2} ${-length * 0.22}`,
+    `L ${-tipWidth/2} ${-length * 0.72}`,
+    `L 0 ${-length}`,
+    `L ${tipWidth/2} ${-length * 0.72}`,
+    `L ${midWidth/2} ${-length * 0.22}`,
+    `L ${baseWidth/2} 0`,
+    `L ${baseWidth * 0.22} ${tailLength}`,
+    `L 0 ${tailLength + 4}`,
+    `L ${-baseWidth * 0.22} ${tailLength}`,
+    'Z'
+  ].join(' ');
+}
+
 function setHands(h, m, animate = true) {
   const mAngle = (m * 6) - 90;
   const hAngle = ((h % 12) * 30 + m * 0.5) - 90;
@@ -601,6 +624,8 @@ function setHands(h, m, animate = true) {
   const mHand = document.getElementById('handMinute');
   const hHandHit = document.getElementById('handHourHit');
   const mHandHit = document.getElementById('handMinuteHit');
+  const hHandShape = document.getElementById('handHourShape');
+  const mHandShape = document.getElementById('handMinuteShape');
   const hHandTip = document.getElementById('handHourTip');
   const mHandTip = document.getElementById('handMinuteTip');
   const hLen = 38, mLen = 52;
@@ -609,11 +634,15 @@ function setHands(h, m, animate = true) {
     mHand.style.transition = 'all 0.5s ease';
     hHandHit.style.transition = 'all 0.5s ease';
     mHandHit.style.transition = 'all 0.5s ease';
+    hHandShape.style.transition = 'transform 0.5s ease';
+    mHandShape.style.transition = 'transform 0.5s ease';
   } else {
     hHand.style.transition = 'none';
     mHand.style.transition = 'none';
     hHandHit.style.transition = 'none';
     mHandHit.style.transition = 'none';
+    hHandShape.style.transition = 'none';
+    mHandShape.style.transition = 'none';
   }
   const hourX = CX + hLen * Math.cos(hRad);
   const hourY = CY + hLen * Math.sin(hRad);
@@ -627,6 +656,10 @@ function setHands(h, m, animate = true) {
   hHandHit.setAttribute('y2', hourY);
   mHandHit.setAttribute('x2', minuteX);
   mHandHit.setAttribute('y2', minuteY);
+  hHandShape.setAttribute('d', handShapePath(42, 16, 11, 5, 9));
+  mHandShape.setAttribute('d', handShapePath(58, 13, 9, 4, 11));
+  hHandShape.setAttribute('transform', `translate(${CX} ${CY}) rotate(${hAngle + 90})`);
+  mHandShape.setAttribute('transform', `translate(${CX} ${CY}) rotate(${mAngle + 90})`);
   hHandTip.setAttribute('cx', hourX);
   hHandTip.setAttribute('cy', hourY);
   mHandTip.setAttribute('cx', minuteX);
