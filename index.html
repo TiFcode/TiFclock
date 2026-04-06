@@ -50,6 +50,21 @@ body {
 }
 .header h1 { font-size: 1.5rem; margin-bottom: 2px; }
 .header .subtitle { font-size: 0.85rem; opacity: 0.9; }
+.menu-btn {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  border: none;
+  border-radius: 12px;
+  padding: 8px 12px;
+  background: rgba(255,255,255,0.18);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+}
+.menu-btn:active { transform: scale(0.97); }
 
 /* STATS BAR */
 .stats {
@@ -321,6 +336,7 @@ body {
 
 <!-- HEADER -->
 <div class="header" id="header">
+  <button class="menu-btn hidden" id="menuBtn">← Meniu</button>
   <h1>⏰ TiFclock</h1>
   <div class="subtitle">Învață Ceasul! / Learn the Clock!</div>
 </div>
@@ -347,6 +363,7 @@ body {
     <div class="task-label" id="taskLabel">Ce oră arată ceasul?</div>
     <div class="task-text" id="taskText">What time is it?</div>
     <div class="task-sub" id="taskSub"></div>
+    <div class="task-sub hidden" id="liveDigitalTime" style="font-size: 1rem; font-weight: 700; color: var(--primary); margin-top: 8px;"></div>
   </div>
 
   <div class="clock-container" id="clockContainer">
@@ -570,26 +587,23 @@ const game = {
     document.getElementById('menuScreen').classList.remove('hidden');
     document.getElementById('gameArea').classList.add('hidden');
     document.getElementById('statsBar').classList.add('hidden');
+    document.getElementById('menuBtn').classList.add('hidden');
+    document.getElementById('overlay').classList.remove('show');
     const list = document.getElementById('levelList');
     list.innerHTML = '';
-    let maxUnlocked = 1;
-    for (let i = 1; i <= LEVELS.length; i++) {
-      if (this.levelScores[i]) maxUnlocked = Math.max(maxUnlocked, i + 1);
-    }
     LEVELS.forEach(lv => {
-      const locked = lv.id > maxUnlocked;
       const stars = this.levelScores[lv.id] || 0;
       const el = document.createElement('div');
-      el.className = 'level-item' + (locked ? ' locked' : '');
+      el.className = 'level-item';
       el.innerHTML = `
-        <div class="lvl-icon">${locked ? '🔒' : lv.icon}</div>
+        <div class="lvl-icon">${lv.icon}</div>
         <div class="lvl-info">
           <div class="lvl-name">${lv.id}. ${lv.name}</div>
           <div class="lvl-desc">${lv.desc}</div>
         </div>
         <div class="lvl-stars">${stars >= 3 ? '⭐⭐⭐' : stars >= 2 ? '⭐⭐☆' : stars >= 1 ? '⭐☆☆' : '☆☆☆'}</div>
       `;
-      if (!locked) el.onclick = () => this.startLevel(lv.id);
+      el.onclick = () => this.startLevel(lv.id);
       list.appendChild(el);
     });
   },
@@ -603,8 +617,19 @@ const game = {
     document.getElementById('menuScreen').classList.add('hidden');
     document.getElementById('gameArea').classList.remove('hidden');
     document.getElementById('statsBar').classList.remove('hidden');
+    document.getElementById('menuBtn').classList.remove('hidden');
     this.updateStats();
     this.nextRound();
+  },
+
+  goToMenu() {
+    this.dragging = null;
+    this.renderMenu();
+  },
+
+  updateLiveDigitalTime() {
+    const el = document.getElementById('liveDigitalTime');
+    el.textContent = `Ora setată: ${fmtTime(this.setH, this.setM)}`;
   },
 
   updateStats() {
@@ -633,6 +658,7 @@ const game = {
       document.getElementById('dragHint').classList.add('hidden');
       document.getElementById('answersGrid').classList.remove('hidden');
       document.getElementById('confirmBtn').classList.add('hidden');
+      document.getElementById('liveDigitalTime').classList.add('hidden');
       document.getElementById('taskLabel').textContent = 'Ce oră arată ceasul?';
       document.getElementById('taskText').textContent = 'What time does the clock show?';
       document.getElementById('taskSub').textContent = `Runda ${this.round}/${lv.rounds}`;
@@ -644,12 +670,14 @@ const game = {
       document.getElementById('dragHint').classList.remove('hidden');
       document.getElementById('answersGrid').classList.add('hidden');
       document.getElementById('confirmBtn').classList.remove('hidden');
+      document.getElementById('liveDigitalTime').classList.remove('hidden');
       document.getElementById('taskLabel').textContent = 'Setează ceasul la:';
       document.getElementById('taskText').textContent = fmtTime(h, m);
       document.getElementById('taskSub').textContent = `${fmtTimeRo(h, m)} — Runda ${this.round}/${lv.rounds}`;
       this.setH = 12;
       this.setM = 0;
       setHands(12, 0, false);
+      this.updateLiveDigitalTime();
     }
   },
 
@@ -751,6 +779,7 @@ const game = {
         this.setH = ((snapped / 30) % 12) || 12;
       }
       setHands(this.setH, this.setM, false);
+      this.updateLiveDigitalTime();
     };
 
     const endDrag = () => { this.dragging = null; };
@@ -763,6 +792,7 @@ const game = {
     window.addEventListener('touchend', endDrag);
 
     document.getElementById('confirmBtn').addEventListener('click', () => this.checkSetTime());
+    document.getElementById('menuBtn').addEventListener('click', () => this.goToMenu());
   },
 
   checkSetTime() {
@@ -809,8 +839,7 @@ const game = {
 
   nextLevel() {
     document.getElementById('overlay').classList.remove('show');
-    // If there's a next level and we passed, go to it; otherwise menu
-    if (this.lives > 0 && this.level < LEVELS.length) {
+    if (this.level < LEVELS.length) {
       this.startLevel(this.level + 1);
     } else {
       this.renderMenu();
